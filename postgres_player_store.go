@@ -1,4 +1,4 @@
-package main
+package httpserver
 
 import (
 	"context"
@@ -45,4 +45,8 @@ func (p *PostgresPlayerStore) RecordWin(name string) {
 			fmt.Println(fmt.Errorf("unable to record win: %w", err))
 		}
 	}
+}
+
+func (p *PostgresPlayerStore) GetLeague() League {
+	return []Player{}
 }

@@ -1,28 +1,43 @@
-package main
+package httpserver
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	db := DatabaseConnection()
-	defer db.Close(context.Background())
-	store := NewPostgresPlayerStore(db)
-	server := PlayerServer{
-		store: store,
-	}
+	db, closeDb := createTempFile(t, "")
+	defer closeDb()
+	store := &FileSystemPlayerStore{db}
+	server := NewPlayerServer(store)
 	player := "Abhishek"
 
 	server.ServeHTTP(httptest.NewRecorder(), newPostWinRequest(player))
 	server.ServeHTTP(httptest.NewRecorder(), newPostWinRequest(player))
 	server.ServeHTTP(httptest.NewRecorder(), newPostWinRequest(player))
 
-	response := httptest.NewRecorder()
-	server.ServeHTTP(response, newGetScoreRequest(player))
-	assertResponseStatusCode(t, response.Code, http.StatusOK)
+	t.Run("get score", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, newGetScoreRequest(player))
+		assertResponseStatusCode(t, response.Code, http.StatusOK)
 
-	assertResponse(t, response.Body.String(), "3")
+		assertResponse(t, response.Body.String(), "3")
+	})
+
+	t.Run("get league", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, newLeagueRequest())
+
+		assertResponseStatusCode(t, response.Code, http.StatusOK)
+		assertContentTypeHeader(t, *response, "application/json")
+
+		got := getLeagueFromResponse(t, response.Body)
+
+		want := []Player{
+			{player, 3},
+		}
+
+		assertLeague(t, got, want)
+	})
 }
