@@ -1,4 +1,4 @@
-module example.com/main
+module example.com/poker
 
 go 1.22.4
 

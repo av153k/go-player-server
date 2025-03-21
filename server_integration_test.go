@@ -1,4 +1,4 @@
-package httpserver
+package poker
 
 import (
 	"net/http"
@@ -7,9 +7,11 @@ import (
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	db, closeDb := createTempFile(t, "")
+	db, closeDb := createTempFile(t, "[]")
 	defer closeDb()
-	store := &FileSystemPlayerStore{db}
+	store, err := NewFileSystemPlayerStore(db)
+
+	assertNoError(t, err)
 	server := NewPlayerServer(store)
 	player := "Abhishek"
 

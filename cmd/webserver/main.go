@@ -1,6 +1,7 @@
-package httpserver
+package main
 
 import (
+	"example.com/poker"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to open db file %s: %v", dbFileName, err)
 	}
-	server := NewPlayerServer(&FileSystemPlayerStore{db})
+
+	store, err := poker.NewFileSystemPlayerStore(db)
+
+	if err != nil {
+		log.Fatalf("problem creating file player store, %v", err)
+	}
+	server := poker.NewPlayerServer(store)
 	log.Fatal(http.ListenAndServe(":5000", server))
 }

@@ -1,4 +1,4 @@
-package httpserver
+package poker
 
 import (
 	"encoding/json"
@@ -112,13 +112,7 @@ func TestStoreWins(t *testing.T) {
 
 		server.ServeHTTP(response, request)
 
-		if len(store.winCalls) != 1 {
-			t.Errorf("got %d calls to RecordWin want %d", len(store.winCalls), 1)
-		}
-
-		if store.winCalls[0] != player {
-			t.Errorf("Did not get correct player, Got %s want %s", store.winCalls[0], player)
-		}
+		assertPlayerWin(t, &store, "abhishek")
 
 	})
 }
@@ -204,5 +198,18 @@ func newLeagueRequest() *http.Request {
 func assertPlayerScore(t testing.TB, got, want int) {
 	if got != want {
 		t.Errorf("player score mismatched: got %q want %q", got, want)
+	}
+}
+
+func assertPlayerWin(t testing.TB, store *StubPlayerStore, winner string) {
+
+	t.Helper()
+
+	if len(store.winCalls) != 1 {
+		t.Fatalf("got %d calls to RecordWin want  %d", len(store.winCalls), 1)
+	}
+
+	if store.winCalls[0] != winner {
+		t.Fatalf("did not store correct winner got %q want %q", store.winCalls[0], winner)
 	}
 }

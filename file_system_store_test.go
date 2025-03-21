@@ -1,7 +1,6 @@
-package httpserver
+package poker
 
 import (
-	"io"
 	"os"
 	"testing"
 )
@@ -16,14 +15,16 @@ func TestFileSystemStore(t *testing.T) {
 
 	defer cleanDatabase()
 
-	store := FileSystemPlayerStore{database}
+	store, err := NewFileSystemPlayerStore(database)
+
+	assertNoError(t, err)
 
 	t.Run("Get league", func(t *testing.T) {
 		got := store.GetLeague()
 
 		want := []Player{
-			{"Chris", 10},
 			{"Liam", 45},
+			{"Chris", 10},
 		}
 
 		assertLeague(t, got, want)
@@ -31,6 +32,17 @@ func TestFileSystemStore(t *testing.T) {
 		got = store.GetLeague()
 
 		assertLeague(t, got, want)
+	})
+
+	t.Run("works with an empty file", func(t *testing.T) {
+		database, cleanDb := createTempFile(t, "")
+
+		defer cleanDb()
+
+		_, err := NewFileSystemPlayerStore(database)
+
+		assertNoError(t, err)
+
 	})
 
 	t.Run("Get player score", func(t *testing.T) {
@@ -56,9 +68,35 @@ func TestFileSystemStore(t *testing.T) {
 		assertPlayerScore(t, got, 1)
 	})
 
+	t.Run("league sorted", func(t *testing.T) {
+		database, cleanDatabase := createTempFile(t, `
+		[{"Name":"Subhadeep", "Wins":10},
+		{"Name":"Samrat", "Wins":30}
+		]`)
+
+		defer cleanDatabase()
+
+		store, err := NewFileSystemPlayerStore(database)
+
+		assertNoError(t, err)
+
+		got := store.GetLeague()
+
+		want := League{
+			{"Samrat", 30},
+			{"Subhadeep", 10},
+		}
+
+		assertLeague(t, got, want)
+
+		got = store.GetLeague()
+
+		assertLeague(t, got, want)
+	})
+
 }
 
-func createTempFile(t testing.TB, initialData string) (io.ReadWriteSeeker, func()) {
+func createTempFile(t testing.TB, initialData string) (*os.File, func()) {
 	t.Helper()
 
 	tempFile, err := os.CreateTemp("", "db")
@@ -75,4 +113,12 @@ func createTempFile(t testing.TB, initialData string) (io.ReadWriteSeeker, func(
 	}
 
 	return tempFile, removFile
+}
+
+func assertNoError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("didn't expect an error but got one, %v", err)
+
+	}
 }

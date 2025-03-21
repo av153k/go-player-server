@@ -1,4 +1,4 @@
-package httpserver
+package poker
 
 import (
 	"encoding/json"
@@ -18,11 +18,11 @@ func (l League) Find(name string) *Player {
 	return nil
 }
 
-func NewLeague(rdr io.Reader) (league []Player) {
-	err := json.NewDecoder(rdr).Decode(&league)
+func NewLeague(rdr io.Reader) (league []Player, err error) {
+	err = json.NewDecoder(rdr).Decode(&league)
 	if err != nil {
-		fmt.Errorf("Error while parsing league %v", err)
+		return nil, fmt.Errorf("error while parsing league %v", err)
 	}
 
-	return
+	return league, nil
 }
