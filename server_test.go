@@ -7,10 +7,51 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
+func TestGame(t *testing.T) {
+	t.Run("GET /game returns 200", func(t *testing.T) {
+		server := NewPlayerServer(&StubPlayerStore{})
+		request := newGameRequest()
 
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		assertStatus(t, response, 200)
+
+	})
+
+	t.Run("when we get a message over a websocket it is the winner of the game", func(t *testing.T) {
+		store := &StubPlayerStore{}
+		winner := "Ruth"
+		server := httptest.NewServer(NewPlayerServer(store))
+
+		defer server.Close()
+
+		wsUrl := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+
+		ws, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
+
+		if err != nil {
+			t.Fatalf("Unable to open a websocket connection: %s %v", wsUrl, err)
+		}
+
+		defer ws.Close()
+
+		if err := ws.WriteMessage(websocket.TextMessage, []byte(winner)); err != nil {
+			t.Fatalf("could not send message over the websocket connection %v", err)
+		}
+
+
+		AssertPlayerWin(t, store, winner)
+
+	})
+}
 
 func TestGETPlayers(t *testing.T) {
 	store := StubPlayerStore{
@@ -30,7 +71,7 @@ func TestGETPlayers(t *testing.T) {
 		got := response.Body.String()
 		want := "20"
 
-		assertResponseStatusCode(t, response.Code, http.StatusOK)
+		assertStatus(t, response, http.StatusOK)
 		assertResponse(t, got, want)
 
 	})
@@ -44,7 +85,7 @@ func TestGETPlayers(t *testing.T) {
 		got := response.Body.String()
 		want := "10"
 
-		assertResponseStatusCode(t, response.Code, http.StatusOK)
+		assertStatus(t, response, http.StatusOK)
 		assertResponse(t, got, want)
 	})
 
@@ -54,10 +95,9 @@ func TestGETPlayers(t *testing.T) {
 
 		server.ServeHTTP(response, request)
 
-		got := response.Code
 		want := http.StatusNotFound
 
-		assertResponseStatusCode(t, got, want)
+		assertStatus(t, response, want)
 	})
 }
 
@@ -71,6 +111,11 @@ func newPostWinRequest(player string) *http.Request {
 	return request
 }
 
+func newGameRequest() *http.Request {
+	request, _ := http.NewRequest(http.MethodGet, "/game", nil)
+	return request
+}
+
 func assertResponse(t testing.TB, got, want string) {
 	t.Helper()
 	if got != want {
@@ -78,10 +123,10 @@ func assertResponse(t testing.TB, got, want string) {
 	}
 }
 
-func assertResponseStatusCode(t testing.TB, got, want int) {
+func assertStatus(t testing.TB, response *httptest.ResponseRecorder, want int) {
 	t.Helper()
-	if got != want {
-		t.Errorf("StatusCode: Got %d want %d", got, want)
+	if response.Code != want {
+		t.Errorf("StatusCode: Got %d want %d", response.Code, want)
 	}
 }
 
@@ -119,7 +164,7 @@ func TestLeague(t *testing.T) {
 			t.Fatalf("Unable to parse json from the response body %q into slice of player, %v", response.Body, err)
 		}
 
-		assertResponseStatusCode(t, response.Code, http.StatusOK)
+		assertStatus(t, response, http.StatusOK)
 
 	})
 
@@ -141,7 +186,7 @@ func TestLeague(t *testing.T) {
 
 		got := getLeagueFromResponse(t, response.Body)
 		assertContentTypeHeader(t, *response, "application/json")
-		assertResponseStatusCode(t, response.Code, http.StatusOK)
+		assertStatus(t, response, http.StatusOK)
 		assertLeague(t, got, wantedPlayers)
 	})
 }
@@ -184,4 +229,3 @@ func assertPlayerScore(t testing.TB, got, want int) {
 		t.Errorf("player score mismatched: got %q want %q", got, want)
 	}
 }
-

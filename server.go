@@ -3,8 +3,11 @@ package poker
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 const jsonContentType = "application/json"
@@ -34,10 +37,31 @@ func NewPlayerServer(store PlayerStore) *PlayerServer {
 
 	router.Handle("/league", http.HandlerFunc(server.leagueHandler))
 	router.Handle("/players/", http.HandlerFunc(server.playersHandler))
-
+	router.Handle("/game", http.HandlerFunc(server.gameHandler))
+	router.Handle("/ws", http.HandlerFunc(server.webSocket))
 	server.Handler = router
 
 	return server
+}
+
+func (p *PlayerServer) webSocket(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+
+	upgrader.Upgrade(w, r, nil)
+}
+
+func (p *PlayerServer) gameHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("./game.html")
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Problem loading template %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	tmpl.Execute(w, nil)
+	
 }
 
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
